@@ -1,4 +1,8 @@
-# 1. Database Secrets
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: glpi
+---
 apiVersion: v1
 kind: Secret
 metadata:
@@ -11,7 +15,6 @@ stringData:
   MYSQL_DATABASE: "glpi"
   MYSQL_USER: "glpi"
 ---
-# 2. Persistent Storage (Data & DB)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -30,14 +33,13 @@ spec:
   accessModes: [ReadWriteOnce]
   resources: { requests: { storage: 10Gi } }
 ---
-# 3. MariaDB Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: glpi-db
   namespace: glpi
 spec:
-  replicas: 3
+  replicas: 1
   selector: { matchLabels: { app: glpi-db } }
   template:
     metadata: { labels: { app: glpi-db } }
@@ -61,7 +63,6 @@ spec:
       - name: db-data
         persistentVolumeClaim: { claimName: glpi-db-pvc }
 ---
-# 4. MariaDB Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -71,34 +72,34 @@ spec:
   ports: [{ port: 3306 }]
   selector: { app: glpi-db }
 ---
-# 5. GLPI Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: glpi-app
   namespace: glpi
 spec:
-  replicas: 3
+  replicas: 1
   selector: { matchLabels: { app: glpi } }
   template:
     metadata: { labels: { app: glpi } }
     spec:
+      initContainers:
+      - name: wait-for-db
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z glpi-db 3306; do echo waiting for db; sleep 2; done;']
       containers:
       - name: glpi
-        image: glpi-project/glpi:latest
+        image: glpi/glpi:11.0-nightly
         ports: [{ containerPort: 80 }]
         volumeMounts:
         - name: glpi-files
           mountPath: /var/www/html/files
-        - name: glpi-config
+        - name: glpi-files
           mountPath: /var/www/html/config
       volumes:
       - name: glpi-files
         persistentVolumeClaim: { claimName: glpi-files-pvc }
-      - name: glpi-config
-        persistentVolumeClaim: { claimName: glpi-files-pvc } # Simplification: sharing PVC for config/files
 ---
-# 6. GLPI Service
 apiVersion: v1
 kind: Service
 metadata:

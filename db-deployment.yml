@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glpi-db
+  namespace: glpi
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: glpi-db } }
+  template:
+    metadata: { labels: { app: glpi-db } }
+    spec:
+      containers:
+      - name: mariadb
+        image: mariadb:10.11
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom: { secretKeyRef: { name: glpi-db-secrets, key: MYSQL_ROOT_PASSWORD } }
+        - name: MYSQL_DATABASE
+          valueFrom: { secretKeyRef: { name: glpi-db-secrets, key: MYSQL_DATABASE } }
+        - name: MYSQL_USER
+          valueFrom: { secretKeyRef: { name: glpi-db-secrets, key: MYSQL_USER } }
+        - name: MYSQL_PASSWORD
+          valueFrom: { secretKeyRef: { name: glpi-db-secrets, key: MYSQL_PASSWORD } }
+        volumeMounts:
+        - name: db-data
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: db-data
+        persistentVolumeClaim: { claimName: glpi-db-pvc }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glpi-db
+  namespace: glpi
+spec:
+  ports: [{ port: 3306 }]
+  selector: { app: glpi-db }

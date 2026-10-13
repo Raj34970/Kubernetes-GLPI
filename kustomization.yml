@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespace.yml
   - secrets.yml
-  - pvcs.yml
-  - db-deployment.yml
-  - app-deployment.yml
+  - ./persistant_volume/pv.yml
+  - ./persistant_volume/pvcs.yml
+  - ./deployment/db-deployment.yml
+  - ./deployment/app-deployment.yml
